@@ -23,7 +23,7 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add [branch name]",
+	Use:   "add <branch name>",
 	Short: "Add the specified branch as a worktree",
 	Long:  `Adds the specified branch as a worktree`,
 	Args:  cobra.ExactArgs(1),
@@ -50,19 +50,15 @@ func init() {
 	rootCmd.AddCommand(addCmd)
 }
 
-func constructPath(cmd *cobra.Command, name string) (string, error) {
+func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	targetDirectory, err := cmd.Flags().GetString("target-directory")
-	if err != nil {
-		return "", err
-	}
-
 	worktreeName, err := cmd.Flags().GetString("name")
 	if err != nil {
 		return "", err
 	}
 
 	if worktreeName == "" {
-		return targetDirectory + name, nil
+		worktreeName = branchName
 	}
 
 	return targetDirectory + worktreeName, nil
