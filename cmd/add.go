@@ -17,6 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"bytes"
+	"fmt"
 	"os/exec"
 
 	"github.com/spf13/cobra"
@@ -28,6 +30,7 @@ var addCmd = &cobra.Command{
 	Long:  `Adds the specified branch as a worktree`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var stderr bytes.Buffer
 		branchName := args[0]
 
 		path, err := constructPath(cmd, branchName)
@@ -36,10 +39,12 @@ var addCmd = &cobra.Command{
 		}
 
 		gitCommand := exec.Command("git", "worktree", "add", path, branchName)
+		gitCommand.Stderr = &stderr
 		err = gitCommand.Run()
 		if err != nil {
-			return err
+			return fmt.Errorf("git error: %v", stderr.String())
 		}
+
 		return nil
 	},
 }
@@ -52,9 +57,13 @@ func init() {
 
 func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	targetDirectory, err := cmd.Flags().GetString("target-directory")
+	if err != nil {
+		return "", fmt.Errorf("constructing path: %v", err)
+	}
+
 	worktreeName, err := cmd.Flags().GetString("name")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("constructing path: %v", err)
 	}
 
 	if worktreeName == "" {
