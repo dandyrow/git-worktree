@@ -25,12 +25,12 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add <branch name>",
+	Use:   "add <branch name> [<base branch>]",
 	Short: "Add the specified branch as a worktree",
 	Long:  `Adds the specified branch as a worktree`,
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.RangeArgs(1, 2),
+
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var stderr bytes.Buffer
 		branchName := args[0]
 
 		path, err := constructPath(cmd, branchName)
@@ -38,14 +38,12 @@ var addCmd = &cobra.Command{
 			return err
 		}
 
-		gitCommand := exec.Command("git", "worktree", "add", path, branchName)
-		gitCommand.Stderr = &stderr
-		err = gitCommand.Run()
-		if err != nil {
-			return fmt.Errorf("git error: %v", stderr.String())
+		if len(args) == 1 {
+			return addExistingBranch(path, branchName)
 		}
 
-		return nil
+		baseBranch := args[1]
+		return createNewBranch(path, branchName, baseBranch)
 	},
 }
 
@@ -71,4 +69,32 @@ func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	}
 
 	return targetDirectory + worktreeName, nil
+}
+
+func addExistingBranch(path string, branchName string) error {
+	var stderr bytes.Buffer
+
+	gitCommand := exec.Command("git", "worktree", "add", path, branchName)
+	gitCommand.Stderr = &stderr
+
+	err := gitCommand.Run()
+	if err != nil {
+		return fmt.Errorf("git error: %v", stderr.String())
+	}
+
+	return nil
+}
+
+func createNewBranch(path string, branchName string, baseBranch string) error {
+	var stderr bytes.Buffer
+
+	gitCommand := exec.Command("git", "worktree", "add", "-b", branchName, path, baseBranch)
+	gitCommand.Stderr = &stderr
+
+	err := gitCommand.Run()
+	if err != nil {
+		return fmt.Errorf("git error: %v", stderr.String())
+	}
+
+	return nil
 }
