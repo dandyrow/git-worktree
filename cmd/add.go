@@ -17,18 +17,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/spf13/cobra"
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add <branch name> [<base branch>]",
+	Use:   "add <branch name> [<base branch>] [flags]",
 	Short: "Add the specified branch as a worktree",
-	Long:  `Adds the specified branch as a worktree`,
-	Args:  cobra.RangeArgs(1, 2),
+	Long: `Adds the specified branch as a worktree.
+
+The base branch optional argument causes a new branch to be created based upon the specified base branch.`,
+	Args: cobra.RangeArgs(1, 2),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		branchName := args[0]
@@ -39,11 +41,11 @@ var addCmd = &cobra.Command{
 		}
 
 		if len(args) == 1 {
-			return addExistingBranch(path, branchName)
+			return runWorktreeAdd(path, branchName, "")
 		}
 
 		baseBranch := args[1]
-		return createNewBranch(path, branchName, baseBranch)
+		return runWorktreeAdd(path, baseBranch, branchName)
 	},
 }
 
@@ -71,29 +73,19 @@ func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	return targetDirectory + worktreeName, nil
 }
 
-func addExistingBranch(path string, branchName string) error {
-	var stderr bytes.Buffer
-
-	gitCommand := exec.Command("git", "worktree", "add", path, branchName)
-	gitCommand.Stderr = &stderr
-
-	err := gitCommand.Run()
-	if err != nil {
-		return fmt.Errorf("git error: %v", stderr.String())
+func runWorktreeAdd(path string, commitIsh string, newBranchName string) error {
+	gitArgs := []string{"worktree", "add", path, commitIsh}
+	if newBranchName != "" {
+		gitArgs = append(gitArgs, "-b", newBranchName)
 	}
 
-	return nil
-}
-
-func createNewBranch(path string, branchName string, baseBranch string) error {
-	var stderr bytes.Buffer
-
-	gitCommand := exec.Command("git", "worktree", "add", "-b", branchName, path, baseBranch)
-	gitCommand.Stderr = &stderr
+	gitCommand := exec.Command("git", gitArgs...)
+	gitCommand.Stdout = os.Stdout
+	gitCommand.Stderr = os.Stderr
 
 	err := gitCommand.Run()
 	if err != nil {
-		return fmt.Errorf("git error: %v", stderr.String())
+		return fmt.Errorf("git command failed: %w", err)
 	}
 
 	return nil
