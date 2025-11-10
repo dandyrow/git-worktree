@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// cloneCmd represents the clone command
 var cloneCmd = &cobra.Command{
 	Use:   "clone <repository> [<directory>]",
 	Short: "Clones the specified git repo as a blank repository for use with worktrees",
@@ -34,39 +33,81 @@ var cloneCmd = &cobra.Command{
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoURL := args[0]
+
 		directory := strings.TrimSuffix(path.Base(repoURL), ".git")
 		if len(args) > 1 {
 			directory = args[1]
 		}
 
-		err := os.MkdirAll(directory, 0o755)
-		if err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", directory, err)
-		}
-
-		gitCommand := exec.Command("git", "clone", "--bare", "--single-branch", repoURL, directory+"/.git")
-		gitCommand.Stdout = os.Stdout
-		gitCommand.Stderr = os.Stderr
-
-		err = gitCommand.Run()
-		if err != nil {
-			return fmt.Errorf("git command failed: %w", err)
-		}
-
-		return nil
+		return cloneBareRepo(repoURL, directory)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(cloneCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func cloneBareRepo(url string, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// cloneCmd.PersistentFlags().String("foo", "", "A help for foo")
+	if err := gitCommand("", "clone", "--bare", "--single-branch", url, dir+"/.git"); err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// cloneCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	const remoteFetchConfig string = "+refs/heads/*:refs/remotes/origin/*"
+	if err := gitCommand(dir, "config", "remote.origin.fetch", remoteFetchConfig); err != nil {
+		return fmt.Errorf("failed to configure remote fetch: %w", err)
+	}
+
+	if err := gitCommand(dir, "fetch", "--quiet"); err != nil {
+		return fmt.Errorf("failed to fetch remote branches: %w", err)
+	}
+
+	if err := setupUpstreamTracking(dir); err != nil {
+		return fmt.Errorf("failed to setup upstream tracking: %w", err)
+	}
+
+	return nil
+}
+
+func setupUpstreamTracking(dir string) error {
+	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads")
+	cmd.Dir = dir
+
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to list branches: %w", err)
+	}
+
+	branches := strings.Fields(string(output))
+
+	for _, branch := range branches {
+		if branch == "" {
+			continue
+		}
+
+		upstreamBranch := "origin/" + branch
+		if err := gitCommand(dir, "branch", "--set-upstream-to="+upstreamBranch, branch); err != nil {
+			return fmt.Errorf("failed to set upstream for branch %s: %w", branch, err)
+		}
+	}
+
+	return nil
+}
+
+func gitCommand(dir string, args ...string) error {
+	cmd := exec.Command("git", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if dir != "" {
+		cmd.Dir = dir
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git command failed: %w", err)
+	}
+
+	return nil
 }
