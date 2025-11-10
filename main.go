@@ -1,5 +1,13 @@
 /*
-Copyright © 2025 Daniel Lowry
+Git-worktree is a CLI for working with git worktrees.
+
+It simplifies working with git worktrees by providing commands to:
+- Clone repositories as bare repositories suitable for worktrees
+- Add new worktrees for existing remote branches
+- Add new worktrees containing a new branch off of an existing branch
+- Manage multiple working directories from a single git repository
+
+# Copyright © 2025 Daniel Lowry
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

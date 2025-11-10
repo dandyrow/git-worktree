@@ -1,5 +1,11 @@
 /*
-Copyright © 2025 Daniel Lowry
+Package cmd implements the command line interface the user interacts with.
+
+The package is built using the Cobra CLI library and organizes commands
+in a hierarchical structure. Each command is implemented in its own file
+and registered with the root command during package initialization.
+
+# Copyright © 2025 Daniel Lowry <development@daniellowry.co.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,6 +28,8 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+
+	"dandyrow/git-worktree/internal/git"
 
 	"github.com/spf13/cobra"
 )
@@ -52,16 +60,16 @@ func cloneBareRepo(url string, dir string) error {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	if err := gitCommand("", "clone", "--bare", "--single-branch", url, dir+"/.git"); err != nil {
+	if err := git.Command("", "clone", "--bare", "--single-branch", url, dir+"/.git"); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
 	const remoteFetchConfig string = "+refs/heads/*:refs/remotes/origin/*"
-	if err := gitCommand(dir, "config", "remote.origin.fetch", remoteFetchConfig); err != nil {
+	if err := git.Command(dir, "config", "remote.origin.fetch", remoteFetchConfig); err != nil {
 		return fmt.Errorf("failed to configure remote fetch: %w", err)
 	}
 
-	if err := gitCommand(dir, "fetch", "--quiet"); err != nil {
+	if err := git.Command(dir, "fetch", "--quiet"); err != nil {
 		return fmt.Errorf("failed to fetch remote branches: %w", err)
 	}
 
@@ -81,32 +89,15 @@ func setupUpstreamTracking(dir string) error {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
 
-	branches := strings.Fields(string(output))
-
-	for _, branch := range branches {
+	for branch := range strings.FieldsSeq(string(output)) {
 		if branch == "" {
 			continue
 		}
 
 		upstreamBranch := "origin/" + branch
-		if err := gitCommand(dir, "branch", "--set-upstream-to="+upstreamBranch, branch); err != nil {
+		if err := git.Command(dir, "branch", "--set-upstream-to="+upstreamBranch, branch); err != nil {
 			return fmt.Errorf("failed to set upstream for branch %s: %w", branch, err)
 		}
-	}
-
-	return nil
-}
-
-func gitCommand(dir string, args ...string) error {
-	cmd := exec.Command("git", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if dir != "" {
-		cmd.Dir = dir
-	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("git command failed: %w", err)
 	}
 
 	return nil

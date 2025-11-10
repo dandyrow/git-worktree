@@ -1,5 +1,11 @@
 /*
-Copyright © 2025 Daniel Lowry
+Package cmd implements the command line interface the user interacts with.
+
+The package is built using the Cobra CLI library and organizes commands
+in a hierarchical structure. Each command is implemented in its own file
+and registered with the root command during package initialization.
+
+# Copyright © 2025 Daniel Lowry <devlopment@daniellowry.co.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,8 +24,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
+
+	"dandyrow/git-worktree/internal/git"
 
 	"github.com/spf13/cobra"
 )
@@ -73,19 +79,20 @@ func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	return targetDirectory + worktreeName, nil
 }
 
+// Adds a git worktree to the path based on the commitIsh.
+//
+// The newBranchName paramter is optional. If set a new branch will be created
+// branched off the commitIsh and will be checked out in the created worktree.
+// If set to the empty string, the worktree will be created with the commitIsh
+// checked out.
 func runWorktreeAdd(path string, commitIsh string, newBranchName string) error {
 	gitArgs := []string{"worktree", "add", path, commitIsh}
 	if newBranchName != "" {
 		gitArgs = append(gitArgs, "-b", newBranchName)
 	}
 
-	gitCommand := exec.Command("git", gitArgs...)
-	gitCommand.Stdout = os.Stdout
-	gitCommand.Stderr = os.Stderr
-
-	err := gitCommand.Run()
-	if err != nil {
-		return fmt.Errorf("git command failed: %w", err)
+	if err := git.Command("", gitArgs...); err != nil {
+		return fmt.Errorf("failed to add git worktree at %s: %w", path, err)
 	}
 
 	return nil
