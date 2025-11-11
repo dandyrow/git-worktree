@@ -41,13 +41,22 @@ var removeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			force = false
+		}
 
 		branchName, err := getBranchForWorktree(name)
 		if err != nil {
 			return fmt.Errorf("failed to get branch name for worktree: %w", err)
 		}
 
-		if err := git.Command("", "worktree", "remove", name); err != nil {
+		worktreeCmdArgs := []string{"worktree", "remove", name}
+		if force {
+			worktreeCmdArgs = append(worktreeCmdArgs, "-f")
+		}
+
+		if err := git.Command("", worktreeCmdArgs...); err != nil {
 			return fmt.Errorf("failed to remove git worktree: %w", err)
 		}
 
@@ -55,7 +64,12 @@ var removeCmd = &cobra.Command{
 			return nil
 		}
 
-		if err := git.Command("", "branch", "-d", branchName); err != nil {
+		branchCmdArgs := []string{"branch", "-d", branchName}
+		if force {
+			branchCmdArgs = append(branchCmdArgs, "--force")
+		}
+
+		if err := git.Command("", branchCmdArgs...); err != nil {
 			return fmt.Errorf("failed to remove git branch. Branch will need removed manually: %w", err)
 		}
 
@@ -64,6 +78,7 @@ var removeCmd = &cobra.Command{
 }
 
 func init() {
+	removeCmd.Flags().BoolP("force", "f", false, "force removal of the worktree and associated branch")
 	rootCmd.AddCommand(removeCmd)
 }
 
