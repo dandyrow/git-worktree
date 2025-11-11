@@ -27,6 +27,8 @@ import (
 	"strings"
 )
 
+const directoryPermission os.FileMode = 0o755
+
 // CloneBareRepo clones a git repository as a bare
 // repository into the specified directory and
 // configures upstream tracking for all branches.
@@ -34,7 +36,7 @@ import (
 // Returns an error if the clone or configuration
 // fails.
 func CloneBareRepo(url string, dir string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, directoryPermission); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 

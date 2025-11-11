@@ -5,7 +5,7 @@ The package is built using the Cobra CLI library and organizes commands
 in a hierarchical structure. Each command is implemented in its own file
 and registered with the root command during package initialization.
 
-Copyright © 2025 Daniel Lowry <development@daniellowry.co.uk>
+# Copyright © 2025 Daniel Lowry <development@daniellowry.co.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
