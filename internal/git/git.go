@@ -76,6 +76,63 @@ func CommandOutput(directory string, args ...string) (string, error) {
 	return string(output), nil
 }
 
+// CloneBareRepo clones a git repository as a bare
+// repository into the specified directory and
+// configures upstream tracking for all branches.
+//
+// Returns an error if the clone or configuration
+// fails.
+func CloneBareRepo(url string, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	if err := Command("", "clone", "--bare", "--single-branch", url, dir+"/.git"); err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	const remoteFetchConfig string = "+refs/heads/*:refs/remotes/origin/*"
+	if err := Command(dir, "config", "remote.origin.fetch", remoteFetchConfig); err != nil {
+		return fmt.Errorf("failed to configure remote fetch: %w", err)
+	}
+
+	if err := Command(dir, "fetch", "--quiet"); err != nil {
+		return fmt.Errorf("failed to fetch remote branches: %w", err)
+	}
+
+	if err := setupUpstreamTracking(dir); err != nil {
+		return fmt.Errorf("failed to setup upstream tracking: %w", err)
+	}
+
+	return nil
+}
+
+// setupUpstreamTracking configures upstream tracking
+// for all local branches in the repository located
+// in dir as git does it on normal repository clones.
+func setupUpstreamTracking(dir string) error {
+	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads")
+	cmd.Dir = dir
+
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to list branches: %w", err)
+	}
+
+	for branch := range strings.FieldsSeq(string(output)) {
+		if branch == "" {
+			continue
+		}
+
+		upstreamBranch := "origin/" + branch
+		if err := Command(dir, "branch", "--set-upstream-to="+upstreamBranch, branch); err != nil {
+			return fmt.Errorf("failed to set upstream for branch %s: %w", branch, err)
+		}
+	}
+
+	return nil
+}
+
 // GetWorktreeBranch returns the branch name associated with a worktree.
 //
 // Returns an empty string if the worktree is in a detached HEAD state.
