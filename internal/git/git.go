@@ -118,6 +118,30 @@ func GetWorktreeBranch(worktreeName string) (string, error) {
 	return "", fmt.Errorf("worktree %s not found", worktreeName)
 }
 
+// AddWorktree adds a git worktree to the specified path in the
+// filesystem basing it on the specified commitIsh.
+//
+// A new branch will be created named after newBranchName and will
+// be checked out in the worktree.
+//
+// If newBranchName is set to the empty string no new branch will
+// be created and the commitIsh will be checked out in the worktree.
+//
+// Returns an error if the worktree cannot be added or the git
+// command fails.
+func AddWorktree(path string, commitIsh string, newBranchName string) error {
+	gitArgs := []string{"worktree", "add", path, commitIsh}
+	if newBranchName != "" {
+		gitArgs = append(gitArgs, "-b", newBranchName)
+	}
+
+	if err := Command("", gitArgs...); err != nil {
+		return fmt.Errorf("failed to add git worktree at %s: %w", path, err)
+	}
+
+	return nil
+}
+
 // RemoveWorktree removes a git worktree from the filesystem.
 //
 // Returns an error if the worktree cannot be deleted or the

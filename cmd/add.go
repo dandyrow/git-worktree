@@ -47,18 +47,12 @@ The base branch optional argument causes a new branch to be created based upon t
 		}
 
 		if len(args) == 1 {
-			return runWorktreeAdd(path, branchName, "")
+			return git.AddWorktree(path, branchName, "")
 		}
 
 		baseBranch := args[1]
-		return runWorktreeAdd(path, baseBranch, branchName)
+		return git.AddWorktree(path, baseBranch, branchName)
 	},
-}
-
-func init() {
-	addCmd.Flags().StringP("target-directory", "d", "./", "target directory where the worktree should be created")
-	addCmd.Flags().StringP("name", "n", "", "set name of worktree to something different than branch name")
-	rootCmd.AddCommand(addCmd)
 }
 
 func constructPath(cmd *cobra.Command, branchName string) (string, error) {
@@ -79,21 +73,8 @@ func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	return targetDirectory + worktreeName, nil
 }
 
-// Adds a git worktree to the path based on the commitIsh.
-//
-// The newBranchName paramter is optional. If set a new branch will be created
-// branched off the commitIsh and will be checked out in the created worktree.
-// If set to the empty string, the worktree will be created with the commitIsh
-// checked out.
-func runWorktreeAdd(path string, commitIsh string, newBranchName string) error {
-	gitArgs := []string{"worktree", "add", path, commitIsh}
-	if newBranchName != "" {
-		gitArgs = append(gitArgs, "-b", newBranchName)
-	}
-
-	if err := git.Command("", gitArgs...); err != nil {
-		return fmt.Errorf("failed to add git worktree at %s: %w", path, err)
-	}
-
-	return nil
+func init() {
+	addCmd.Flags().StringP("target-directory", "d", "./", "target directory where the worktree should be created")
+	addCmd.Flags().StringP("name", "n", "", "set name of worktree to something different than branch name")
+	rootCmd.AddCommand(addCmd)
 }
