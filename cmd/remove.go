@@ -24,10 +24,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
 
 	"dandyrow/git-worktree/internal/git"
 
@@ -40,37 +36,22 @@ var removeCmd = &cobra.Command{
 	Long:  `Removes a worktree and it's associated branch.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
-		force, err := cmd.Flags().GetBool("force")
+		worktreeName := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+
+		branchName, err := git.GetWorktreeBranch(worktreeName)
 		if err != nil {
-			force = false
+			return fmt.Errorf("failed to get branch for worktree: %w", err)
 		}
 
-		branchName, err := getBranchForWorktree(name)
-		if err != nil {
-			return fmt.Errorf("failed to get branch name for worktree: %w", err)
+		if err := git.RemoveWorktree(worktreeName, force); err != nil {
+			return err
 		}
 
-		worktreeCmdArgs := []string{"worktree", "remove", name}
-		if force {
-			worktreeCmdArgs = append(worktreeCmdArgs, "-f")
-		}
-
-		if err := git.Command("", worktreeCmdArgs...); err != nil {
-			return fmt.Errorf("failed to remove git worktree: %w", err)
-		}
-
-		if branchName == "" {
-			return nil
-		}
-
-		branchCmdArgs := []string{"branch", "-d", branchName}
-		if force {
-			branchCmdArgs = append(branchCmdArgs, "--force")
-		}
-
-		if err := git.Command("", branchCmdArgs...); err != nil {
-			return fmt.Errorf("failed to remove git branch. Branch will need removed manually: %w", err)
+		if branchName != "" {
+			if err := git.RemoveBranch(branchName, force); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -80,41 +61,4 @@ var removeCmd = &cobra.Command{
 func init() {
 	removeCmd.Flags().BoolP("force", "f", false, "force removal of the worktree and associated branch")
 	rootCmd.AddCommand(removeCmd)
-}
-
-func getBranchForWorktree(name string) (string, error) {
-	worktreeListCmd := exec.Command("git", "worktree", "list", "--porcelain")
-	worktreeListCmd.Stderr = os.Stderr
-	worktreeList, err := worktreeListCmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to list worktrees: %w", err)
-	}
-
-	for block := range strings.SplitSeq(string(worktreeList), "\n\n") {
-		lines := strings.Split(strings.TrimSpace(block), "\n")
-
-		if len(lines) == 0 {
-			continue
-		}
-
-		worktreePath, found := strings.CutPrefix(lines[0], "worktree ")
-		if !found {
-			continue
-		}
-
-		outputName := path.Base(worktreePath)
-
-		if outputName != name {
-			continue
-		}
-
-		if strings.HasPrefix(lines[2], "detached") {
-			return "", nil
-		}
-
-		branchRef := strings.TrimPrefix(lines[2], "branch ")
-		return path.Base(branchRef), nil
-	}
-
-	return "", fmt.Errorf("failed to find worktree %s", name)
 }
