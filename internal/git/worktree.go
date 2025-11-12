@@ -38,7 +38,7 @@ type worktreeInfo struct {
 // Returns an empty string if the worktree is in a detached HEAD state.
 // Returns an error if the worktree cannot be found or if the git command fails.
 func GetWorktreeBranch(worktreeName string) (string, error) {
-	output, err := CommandOutput("", "worktree", "list", "--porcelain")
+	output, err := commandOutput("", "worktree", "list", "--porcelain")
 	if err != nil {
 		return "", fmt.Errorf("failed to list worktrees: %w", err)
 	}
@@ -60,6 +60,13 @@ func GetWorktreeBranch(worktreeName string) (string, error) {
 	return worktree.Branch, nil
 }
 
+// parseWorktreeList takes in the full output from the
+// command 'git worktree list --porcelain' and splits it into
+// blocks then parses each block.
+//
+// Returns a list of worktreeInfo. Will be the empty list if
+// the format of the list is incorrect, or non of the worktrees
+// have branch information.
 func parseWorktreeList(list string) ([]worktreeInfo, error) {
 	var worktrees []worktreeInfo
 
@@ -79,6 +86,13 @@ func parseWorktreeList(list string) ([]worktreeInfo, error) {
 	return worktrees, nil
 }
 
+// parseWorktreeBlock takes in a block of output from the
+// command 'git worktree list --porcelain' and parses it into
+// a worktreeInfo struct to store the branch.
+//
+// Returns a pointer to a worktreeInfo struct
+// Returns an error if the block doesn't contain anything,
+// it is in an invalid format, or no branch information is found.
 func parseWorktreeBlock(block string) (*worktreeInfo, error) {
 	lines := strings.Split(strings.TrimSpace(block), "\n")
 	if len(lines) == 0 {
@@ -110,6 +124,10 @@ func parseWorktreeBlock(block string) (*worktreeInfo, error) {
 	return nil, fmt.Errorf("no branch information found for worktree %s", info.Name)
 }
 
+// findWorktreeByName does what it says on the tin.
+//
+// Returns the worktree with the specified name
+// Returns an error if no worktree is found matching the specified name.
 func findWorktreeByName(worktrees []worktreeInfo, name string) (*worktreeInfo, error) {
 	for _, worktree := range worktrees {
 		if worktree.Name == name {
@@ -137,7 +155,7 @@ func AddWorktree(path string, commitIsh string, newBranchName string) error {
 		gitArgs = append(gitArgs, "-b", newBranchName)
 	}
 
-	if err := Command("", gitArgs...); err != nil {
+	if err := command("", gitArgs...); err != nil {
 		return fmt.Errorf("failed to add git worktree at %s: %w", path, err)
 	}
 
@@ -154,7 +172,7 @@ func RemoveWorktree(worktreeName string, force bool) error {
 		args = append(args, "-f")
 	}
 
-	if err := Command("", args...); err != nil {
+	if err := command("", args...); err != nil {
 		return fmt.Errorf("failed to remove worktree: %w", err)
 	}
 
@@ -171,7 +189,7 @@ func RemoveBranch(branchName string, force bool) error {
 		args = []string{"branch", "-D", branchName}
 	}
 
-	if err := Command("", args...); err != nil {
+	if err := command("", args...); err != nil {
 		return fmt.Errorf("failed to remove branch (branch will need deleted manually): %w", err)
 	}
 

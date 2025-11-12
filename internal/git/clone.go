@@ -40,16 +40,16 @@ func CloneBareRepo(url string, dir string) error {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	if err := Command("", "clone", "--bare", "--single-branch", url, dir+"/.git"); err != nil {
+	if err := command("", "clone", "--bare", "--single-branch", url, dir+"/.git"); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
 	const remoteFetchConfig string = "+refs/heads/*:refs/remotes/origin/*"
-	if err := Command(dir, "config", "remote.origin.fetch", remoteFetchConfig); err != nil {
+	if err := command(dir, "config", "remote.origin.fetch", remoteFetchConfig); err != nil {
 		return fmt.Errorf("failed to configure remote fetch: %w", err)
 	}
 
-	if err := Command(dir, "fetch", "--quiet"); err != nil {
+	if err := command(dir, "fetch", "--quiet"); err != nil {
 		return fmt.Errorf("failed to fetch remote branches: %w", err)
 	}
 
@@ -78,7 +78,7 @@ func setupUpstreamTracking(dir string) error {
 		}
 
 		upstreamBranch := "origin/" + branch
-		if err := Command(dir, "branch", "--set-upstream-to="+upstreamBranch, branch); err != nil {
+		if err := command(dir, "branch", "--set-upstream-to="+upstreamBranch, branch); err != nil {
 			return fmt.Errorf("failed to set upstream for branch %s: %w", branch, err)
 		}
 	}

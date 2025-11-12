@@ -26,7 +26,7 @@ import (
 	"os/exec"
 )
 
-// Command executes a git command in the directory
+// command executes a git command in the directory
 // with the provided args.
 //
 // The directory parameter is optional. If set to
@@ -36,7 +36,7 @@ import (
 // Stdout and Stderr will be printed to the os provided
 // stdout and stderr.
 // Returns an error if the git command fails.
-func Command(directory string, args ...string) error {
+func command(directory string, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -51,7 +51,7 @@ func Command(directory string, args ...string) error {
 	return nil
 }
 
-// CommandOutput executes a git command and returns its output.
+// commandOutput executes a git command and returns its output.
 //
 // The directory parameter is optional. If set to
 // the empty string the command will be run in the
@@ -59,7 +59,7 @@ func Command(directory string, args ...string) error {
 //
 // Stderr will be printed to the os provided stderr.
 // Returns the stdout output as a string.
-func CommandOutput(directory string, args ...string) (string, error) {
+func commandOutput(directory string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Stderr = os.Stderr
 	if directory != "" {
