@@ -24,6 +24,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"dandyrow/git-worktree/internal/git"
 
@@ -59,6 +60,10 @@ func constructPath(cmd *cobra.Command, branchName string) (string, error) {
 	targetDirectory, err := cmd.Flags().GetString("target-directory")
 	if err != nil {
 		return "", fmt.Errorf("constructing path: %v", err)
+	}
+
+	if !strings.HasSuffix(targetDirectory, "/") {
+		targetDirectory = targetDirectory + "/"
 	}
 
 	worktreeName, err := cmd.Flags().GetString("name")
