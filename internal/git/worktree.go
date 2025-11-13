@@ -26,116 +26,43 @@ import (
 	"strings"
 )
 
-type worktreeInfo struct {
-	Path     string
-	Name     string
-	Branch   string
-	Detached bool
-}
-
 // GetWorktreeBranch returns the branch name associated with a worktree.
 //
 // Returns an empty string if the worktree is in a detached HEAD state.
 // Returns an error if the worktree cannot be found or if the git command fails.
-func GetWorktreeBranch(worktreeName string) (string, error) {
+func GetWorktreeBranch(name string) (string, error) {
 	output, err := commandOutput("", "worktree", "list", "--porcelain")
 	if err != nil {
 		return "", fmt.Errorf("failed to list worktrees: %w", err)
 	}
 
-	worktrees, err := parseWorktreeList(output)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse worktree list: %w", err)
-	}
-
-	worktree, err := findWorktreeByName(worktrees, worktreeName)
-	if err != nil {
-		return "", err
-	}
-
-	if worktree.Detached {
-		return "", nil
-	}
-
-	return worktree.Branch, nil
-}
-
-// parseWorktreeList takes in the full output from the
-// command 'git worktree list --porcelain' and splits it into
-// blocks then parses each block.
-//
-// Returns a list of worktreeInfo. Will be the empty list if
-// the format of the list is incorrect, or non of the worktrees
-// have branch information.
-func parseWorktreeList(list string) ([]worktreeInfo, error) {
-	var worktrees []worktreeInfo
-
-	for block := range strings.SplitSeq(strings.TrimSpace(list), "\n\n") {
-		if strings.TrimSpace(block) == "" {
+	for block := range strings.SplitSeq(strings.TrimSpace(output), "\n\n") {
+		lines := strings.Split(strings.TrimSpace(block), "\n")
+		if len(lines) < 3 {
 			continue
 		}
 
-		info, err := parseWorktreeBlock(block)
-		if err != nil {
+		worktreePath := strings.TrimPrefix(lines[0], "worktree ")
+		worktreeName := path.Base(worktreePath)
+		if worktreeName != name {
 			continue
 		}
 
-		worktrees = append(worktrees, *info)
-	}
-
-	return worktrees, nil
-}
-
-// parseWorktreeBlock takes in a block of output from the
-// command 'git worktree list --porcelain' and parses it into
-// a worktreeInfo struct to store the branch.
-//
-// Returns a pointer to a worktreeInfo struct
-// Returns an error if the block doesn't contain anything,
-// it is in an invalid format, or no branch information is found.
-func parseWorktreeBlock(block string) (*worktreeInfo, error) {
-	lines := strings.Split(strings.TrimSpace(block), "\n")
-	if len(lines) == 0 {
-		return nil, fmt.Errorf("empty worktree block")
-	}
-
-	worktreePath, found := strings.CutPrefix(lines[0], "worktree ")
-	if !found {
-		return nil, fmt.Errorf("invalid worktree format: missing 'worktree' prefix")
-	}
-
-	info := &worktreeInfo{
-		Path: worktreePath,
-		Name: path.Base(worktreePath),
-	}
-
-	branchLine := lines[2]
-	if strings.HasPrefix(branchLine, "detached") {
-		info.Detached = true
-		return info, nil
-	}
-
-	if strings.HasPrefix(branchLine, "branch") {
-		branchRef := strings.TrimPrefix(branchLine, "branch ")
-		info.Branch = path.Base(branchRef)
-		return info, nil
-	}
-
-	return nil, fmt.Errorf("no branch information found for worktree %s", info.Name)
-}
-
-// findWorktreeByName does what it says on the tin.
-//
-// Returns the worktree with the specified name
-// Returns an error if no worktree is found matching the specified name.
-func findWorktreeByName(worktrees []worktreeInfo, name string) (*worktreeInfo, error) {
-	for _, worktree := range worktrees {
-		if worktree.Name == name {
-			return &worktree, nil
+		branchLine := lines[2]
+		if strings.HasPrefix(branchLine, "detached") {
+			return "", nil
 		}
+
+		branchPath, found := strings.CutPrefix(branchLine, "branch ")
+		if !found {
+			return "", fmt.Errorf("unexpected format for branch line in worktree %s: %q", name, branchLine)
+		}
+
+		branchName := path.Base(branchPath)
+		return branchName, nil
 	}
 
-	return nil, fmt.Errorf("worktree %s not found", name)
+	return "", fmt.Errorf("failed to find worktree %s", name)
 }
 
 // AddWorktree adds a git worktree to the specified path in the
