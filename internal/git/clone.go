@@ -23,7 +23,6 @@ package git
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -64,10 +63,7 @@ func CloneBareRepo(url string, dir string) error {
 // for all local branches in the repository located
 // in dir as git does it on normal repository clones.
 func setupUpstreamTracking(dir string) error {
-	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads")
-	cmd.Dir = dir
-
-	output, err := cmd.Output()
+	output, err := commandOutput(dir, "for-each-ref", "--format=%(refname:short)", "refs/heads")
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
